@@ -1,0 +1,40 @@
+# =====================================================================
+#  DADOS SENSIVEIS - NUNCA versionar (leads reais / LGPD)
+# =====================================================================
+planilhas/
+*.xlsx
+*.xlsm
+*.xls
+*.csv
+~$*
+
+# Dados locais do app web (uploads, resultados, supressao de teste)
+app-web/_data/
+
+# =====================================================================
+#  Artefatos de build do app desktop (regeneraveis pelo PyInstaller)
+# =====================================================================
+app-desktop/build/
+app-desktop/dist/
+
+# Logs
+*.log
+
+# =====================================================================
+#  Python
+# =====================================================================
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+
+# =====================================================================
+#  Sistema operacional / editores / ferramentas locais
+# =====================================================================
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.claude/

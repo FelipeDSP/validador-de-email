@@ -1,0 +1,10 @@
+# Normaliza fim de linha para LF no repositorio (consistente entre Windows e o
+# build Linux/Docker; evita problemas no Dockerfile e nos scripts Python).
+* text=auto eol=lf
+
+# Binarios (nao mexer no fim de linha)
+*.exe binary
+*.xlsx binary
+*.xls binary
+*.png binary
+*.ico binary

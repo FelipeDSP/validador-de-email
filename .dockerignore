@@ -1,0 +1,24 @@
+# Nao enviar dados/planilhas nem artefatos pesados para o build da imagem.
+*.xlsx
+*.xlsm
+*.xls
+*.csv
+*.txt
+!app-web/requirements.txt
+
+# Pasta inteira de planilhas (dados) e artefatos de build do app desktop
+planilhas/
+app-desktop/dist/
+app-desktop/build/
+*.spec
+*.exe
+
+# Dados de teste local do app web e logs
+app-web/_data/
+*.log
+
+# Caches
+__pycache__/
+*.pyc
+.venv/
+venv/
