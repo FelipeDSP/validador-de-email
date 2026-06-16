@@ -1,11 +1,11 @@
 # Imagem do Validador de E-mails (versao web) para a VPS / Coolify.
-# Build context = RAIZ do projeto (a pasta 'leads'), pois precisamos copiar
-# tanto 'app-desktop/email_validator_app.py' quanto a pasta 'app-web/'.
+# Fica na RAIZ do repo de proposito: o build copia tanto o nucleo
+# (app-desktop/email_validator_app.py) quanto o app web (app-web/).
 #
-# No Coolify:
-#   - Build Pack: Dockerfile
-#   - Dockerfile Location: app-web/Dockerfile
-#   - Base Directory / Build Context: / (raiz do repo)
+# No Coolify (Build Pack: Dockerfile):
+#   - Base Directory:     /          (NAO coloque o caminho do Dockerfile aqui!)
+#   - Dockerfile Location: Dockerfile (na raiz; este arquivo)
+#   - Port:               8000
 FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \

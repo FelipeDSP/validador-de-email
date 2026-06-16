@@ -40,10 +40,11 @@ arquivo de ~1 milhão de linhas, com ~27% de domínios corporativos
 
 2. No Coolify: **+ New Resource → Application → (seu repositório)**.
 
-3. Configure o build:
+3. Configure o build (o Dockerfile fica na RAIZ do repo):
    - **Build Pack:** `Dockerfile`
-   - **Dockerfile Location:** `app-web/Dockerfile`
-   - **Base Directory / Build Context:** `/` (raiz do repo)
+   - **Base Directory:** `/`  ⚠️ **só a barra; NÃO coloque o caminho do
+     Dockerfile aqui** (é o erro que faz `mkdir ... Dockerfile: File exists`).
+   - **Dockerfile Location:** `Dockerfile`  (na raiz; pode deixar o padrão)
    - **Port (Ports Exposes):** `8000`
 
 4. **Variáveis de ambiente** (Environment Variables):

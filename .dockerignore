@@ -5,6 +5,7 @@
 *.csv
 *.txt
 !app-web/requirements.txt
+!app-web/data/disposable_domains.txt
 
 # Pasta inteira de planilhas (dados) e artefatos de build do app desktop
 planilhas/
