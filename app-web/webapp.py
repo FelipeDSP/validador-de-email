@@ -20,6 +20,7 @@ import os
 import io
 import time
 import uuid
+import hmac
 import threading
 import functools
 
@@ -34,6 +35,13 @@ import validator_core as core
 # --------------------------------------------------------------------------- #
 APP_USER = os.environ.get("APP_USER", "admin")
 APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
+# Exige a senha JA no import do modulo (vale tambem sob gunicorn, que nao roda o
+# bloco __main__). Sem isto, o app subiria e travaria todos os logins em
+# silencio. Permite pular so em teste explicito (ALLOW_NO_PASSWORD=1).
+if not APP_PASSWORD and os.environ.get("ALLOW_NO_PASSWORD") not in ("1", "true", "True"):
+    raise SystemExit(
+        "APP_PASSWORD nao definida. Configure a variavel de ambiente "
+        "APP_PASSWORD (senha forte) antes de iniciar o app.")
 DATA_DIR = os.environ.get("DATA_DIR", "/data")
 MAX_UPLOAD_MB = int(os.environ.get("MAX_UPLOAD_MB", "2048"))
 SMTP_RATE = int(os.environ.get("SMTP_RATE", "300"))
@@ -122,13 +130,26 @@ def _run_job(job):
             job["status"] = "erro"
         finally:
             job["t_end"] = time.time()
+            # LGPD + disco: o arquivo de leads enviado contem dados pessoais e
+            # nao e mais necessario apos o processamento (a planilha LIMPA fica
+            # em /data/outputs). Apaga sempre, mesmo em erro/cancelamento.
+            try:
+                if os.path.isfile(job["in_path"]):
+                    os.remove(job["in_path"])
+            except OSError:
+                pass
 
 
 # --------------------------------------------------------------------------- #
 #  Autenticacao (HTTP Basic)
 # --------------------------------------------------------------------------- #
 def _check_auth(u, p):
-    return u == APP_USER and p == APP_PASSWORD and APP_PASSWORD != ""
+    if not APP_PASSWORD:
+        return False
+    # Comparacao em tempo constante (evita timing attack na senha).
+    u_ok = hmac.compare_digest((u or ""), APP_USER)
+    p_ok = hmac.compare_digest((p or ""), APP_PASSWORD)
+    return u_ok and p_ok
 
 
 def requires_auth(f):
@@ -339,6 +360,5 @@ def health():
 
 
 if __name__ == "__main__":
-    if not APP_PASSWORD:
-        raise SystemExit("Defina APP_PASSWORD (variavel de ambiente) antes de iniciar.")
+    # APP_PASSWORD ja e exigida no import (vale tambem sob gunicorn).
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "8000")), threaded=True)
