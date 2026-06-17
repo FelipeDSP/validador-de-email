@@ -1212,6 +1212,14 @@ def stream_process(in_path, out_path, column, excluir_arriscados,
 # o modo streaming (grava CSV limpo direto em disco, sem travar a tela).
 BIG_FILE_THRESHOLD = 50000
 
+# --- Identidade visual estud.you (laranja = marca/grafico; verde = acao) ----
+BRAND_ORANGE = "#F4B03E"
+BRAND_GREEN = "#4CB74F"
+BRAND_GREEN_DK = "#3DA642"
+BRAND_INK = "#3F3F3F"
+BRAND_MUTED = "#878587"
+BRAND_BG = "#FBFAF8"
+
 # Classe-base da janela: tk.Tk quando ha interface; 'object' permite que o
 # modulo seja importado headless (servidor) sem tkinter. A GUI so e instanciada
 # em main(), entao a base 'object' nunca chega a ser usada nesse cenario.
@@ -1221,9 +1229,10 @@ _GUI_BASE = tk.Tk if tk is not None else object
 class EmailValidatorApp(_GUI_BASE):
     def __init__(self):
         super().__init__()
-        self.title("Validador de E-mails")
-        self.geometry("820x720")
-        self.minsize(700, 600)
+        self.title("estud.you  -  Validador de E-mails")
+        self.geometry("820x760")
+        self.minsize(700, 620)
+        self._apply_branding()
 
         self.input_path = tk.StringVar()
         self.column_name = tk.StringVar()
@@ -1247,9 +1256,57 @@ class EmailValidatorApp(_GUI_BASE):
         self._check_dependencies()
         self.after(100, self._poll_queue)
 
+    # ------------------------------------------------------------ branding
+    def _apply_branding(self):
+        """Aplica a identidade estud.you: icone, tema e cores de realce."""
+        # Icone da janela gerado em codigo (sem arquivo externo): quadrado
+        # laranja com um ponto verde - as cores da marca.
+        try:
+            icon = tk.PhotoImage(width=64, height=64)
+            icon.put(BRAND_ORANGE, to=(0, 0, 64, 64))
+            icon.put(BRAND_GREEN, to=(38, 36, 56, 54))
+            self.iconphoto(True, icon)
+            self._brand_icon = icon          # mantem referencia viva
+        except Exception:
+            pass
+
+        # Tema 'clam' respeita cores de fundo (o nativo do Windows ignora).
+        style = ttk.Style(self)
+        try:
+            style.theme_use("clam")
+        except Exception:
+            pass
+        self.configure(bg=BRAND_BG)
+        for elem in ("TFrame", "TLabel", "TLabelframe", "TCheckbutton",
+                     "TRadiobutton"):
+            style.configure(elem, background=BRAND_BG, foreground=BRAND_INK)
+        style.configure("TLabelframe.Label", background=BRAND_BG,
+                        foreground=BRAND_INK)
+        # Botao primario (acao) em verde - hierarquia da marca.
+        style.configure("Accent.TButton", background=BRAND_GREEN,
+                        foreground="white", borderwidth=0, padding=(12, 6))
+        style.map("Accent.TButton",
+                  background=[("active", BRAND_GREEN_DK),
+                              ("disabled", "#BCD9BD")])
+        # Barra de progresso em laranja (elemento grafico da marca).
+        style.configure("Brand.Horizontal.TProgressbar",
+                        background=BRAND_ORANGE, troughcolor="#F0ECE4")
+
     # ---------------------------------------------------------------- UI
     def _build_ui(self):
         pad = {"padx": 8, "pady": 4}
+
+        # --- Cabecalho com a marca estud.you (wordmark + slogan)
+        header = tk.Frame(self, bg="white")
+        header.pack(fill="x")
+        word = tk.Frame(header, bg="white")
+        word.pack(pady=(12, 0))
+        tk.Label(word, text="estud", bg="white", fg=BRAND_ORANGE,
+                 font=("Segoe UI", 22, "bold")).pack(side="left")
+        tk.Label(word, text=".you", bg="white", fg=BRAND_GREEN,
+                 font=("Segoe UI", 22, "bold")).pack(side="left")
+        tk.Label(header, text="Você aprendendo sempre", bg="white",
+                 fg=BRAND_MUTED, font=("Segoe UI", 9)).pack(pady=(0, 10))
 
         # --- 1. Planilha de entrada
         frm_file = ttk.LabelFrame(self, text="1. Planilha (Excel / CSV)")
@@ -1272,7 +1329,8 @@ class EmailValidatorApp(_GUI_BASE):
         rowa = ttk.Frame(frm_act)
         rowa.pack(fill="x", padx=8, pady=6)
         self.btn_start = ttk.Button(rowa, text="Validar lista",
-                                    command=self._validate_smart)
+                                    command=self._validate_smart,
+                                    style="Accent.TButton")
         self.btn_start.pack(side="left")
         self.btn_stop = ttk.Button(rowa, text="Parar", command=self._stop,
                                    state="disabled")
@@ -1320,7 +1378,8 @@ class EmailValidatorApp(_GUI_BASE):
         # --- Progresso
         frm_prog = ttk.Frame(self)
         frm_prog.pack(fill="x", **pad)
-        self.progress = ttk.Progressbar(frm_prog, mode="determinate")
+        self.progress = ttk.Progressbar(frm_prog, mode="determinate",
+                                         style="Brand.Horizontal.TProgressbar")
         self.progress.pack(fill="x", side="left", expand=True)
         self.lbl_count = ttk.Label(frm_prog, text="0 / 0", width=14, anchor="e")
         self.lbl_count.pack(side="left", padx=6)
@@ -1349,9 +1408,9 @@ class EmailValidatorApp(_GUI_BASE):
         vsb.pack(side="right", fill="y")
 
         # cor por risco (mais util pro envio do que por status)
-        self.tree.tag_configure("seguro", background="#e6ffe6")
-        self.tree.tag_configure("arriscado", background="#fff5e6")
-        self.tree.tag_configure("invalido", background="#ffe6e6")
+        self.tree.tag_configure("seguro", background="#E8F6E9")
+        self.tree.tag_configure("arriscado", background="#FDF3E2")
+        self.tree.tag_configure("invalido", background="#FBE4E4")
 
         # --- Barra de estado
         self.status_var = tk.StringVar(value="Pronto.")
