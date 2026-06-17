@@ -170,27 +170,48 @@ def requires_auth(f):
 PAGE = """
 <!doctype html><html lang="pt-br"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Validador de E-mails</title>
+<title>estud.you &mdash; Validador de E-mails</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='16' fill='%23F4B03E'/><circle cx='46' cy='42' r='8' fill='%234CB74F'/></svg>">
 <style>
- body{font-family:system-ui,Segoe UI,Arial,sans-serif;max-width:880px;margin:24px auto;padding:0 14px;color:#1b1b1b}
- h1{font-size:20px} h2{font-size:16px;margin-top:28px}
- .card{border:1px solid #ddd;border-radius:10px;padding:16px;margin:12px 0;background:#fafafa}
- label{display:block;margin:8px 0 2px;font-size:14px}
+ :root{--orange:#F4B03E;--orange-deep:#F89520;--green:#4CB74F;--green-link:#2f9c3a;
+   --ink:#3F3F3F;--muted:#878587;--line:#ededed;--bg:#fbfaf8;--card:#fff}
+ *{box-sizing:border-box}
+ body{font-family:system-ui,"Segoe UI",Roboto,Arial,sans-serif;max-width:920px;margin:0 auto;padding:0 16px 48px;color:var(--ink);background:var(--bg)}
+ .brand{position:relative;text-align:center;padding:34px 0 12px;overflow:hidden}
+ .brand:before,.brand:after{content:"";position:absolute;border-radius:50%;z-index:0;filter:blur(1px)}
+ .brand:before{width:170px;height:170px;background:var(--orange);opacity:.16;left:-46px;top:-44px}
+ .brand:after{width:130px;height:130px;background:var(--green);opacity:.13;right:-34px;top:0}
+ .logo{position:relative;z-index:1;font-family:ui-rounded,"SF Pro Rounded",Quicksand,Comfortaa,system-ui,sans-serif;font-weight:800;font-size:42px;letter-spacing:-.5px}
+ .logo .a{color:var(--orange)}.logo .b{color:var(--green)}
+ .slogan{position:relative;z-index:1;color:var(--muted);font-size:13px;margin-top:2px}
+ .ptitle{position:relative;z-index:1;font-size:15px;font-weight:600;color:var(--ink);margin-top:16px}
+ h2{font-size:15px;margin:30px 0 6px}
+ .card{border:1px solid var(--line);border-radius:18px;padding:20px;margin:14px 0;background:var(--card);box-shadow:0 6px 22px rgba(63,63,63,.05)}
+ .card.sup{background:#fffdf6;border-color:#f1e3bc}
+ label{display:block;margin:10px 0 2px;font-size:14px}
  input[type=file]{margin:6px 0}
- .btn{background:#2563eb;color:#fff;border:0;padding:9px 16px;border-radius:8px;font-size:14px;cursor:pointer}
- .btn.gray{background:#6b7280}
- table{border-collapse:collapse;width:100%;font-size:13px}
- td,th{border:1px solid #e3e3e3;padding:6px 8px;text-align:left}
- .pill{padding:2px 8px;border-radius:20px;font-size:12px;color:#fff}
- .fila{background:#9ca3af}.processando{background:#2563eb}.concluido{background:#16a34a}
- .erro{background:#dc2626}.cancelado{background:#b45309}
- small{color:#666} a{color:#2563eb}
- .bar{height:8px;background:#e5e7eb;border-radius:6px;overflow:hidden;margin:4px 0}
- .bar>span{display:block;height:100%;background:#2563eb}
- .btn.mini{padding:4px 10px;font-size:12px}
- .sup{background:#fffbea;border-color:#f5e08c}
+ .btn{background:var(--green);color:#fff;border:0;padding:11px 20px;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(76,183,79,.25)}
+ .btn:hover{filter:brightness(.96)}
+ .btn.gray{background:#9aa0a6;box-shadow:none}
+ .btn.mini{padding:5px 12px;font-size:12px;border-radius:9px}
+ table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+ th{background:#faf7f1;font-weight:700}
+ td,th{border-bottom:1px solid var(--line);padding:9px 11px;text-align:left}
+ tr:last-child td{border-bottom:0}
+ .pill{padding:3px 11px;border-radius:20px;font-size:12px;color:#fff;font-weight:600;display:inline-block}
+ .fila{background:#9aa0a6}.processando{background:var(--orange-deep)}.concluido{background:var(--green)}
+ .erro{background:#e0524d}.cancelado{background:#c77d2e}
+ small{color:var(--muted)} a{color:var(--green-link);font-weight:600;text-decoration:none}
+ a:hover{text-decoration:underline}
+ .bar{height:10px;background:#f0ece4;border-radius:8px;overflow:hidden;margin:5px 0}
+ .bar>span{display:block;height:100%;background:linear-gradient(90deg,var(--orange),var(--orange-deep))}
+ .foot{text-align:center;color:var(--muted);font-size:12px;margin-top:34px}
 </style></head><body>
-<h1>Validador de E-mails &mdash; limpeza de listas</h1>
+<div class="brand">
+ <div class="logo"><span class="a">estud</span><span class="b">.you</span></div>
+ <div class="slogan">Você aprendendo sempre</div>
+ <div class="ptitle">Validador de E-mails &mdash; limpeza de listas</div>
+</div>
 <div class="card">
  <form method="post" action="{{ url_for('upload') }}" enctype="multipart/form-data">
   <label><b>1) Planilha de leads</b> (.xlsx / .csv)</label>
@@ -261,6 +282,8 @@ PAGE = """
 {% else %}<p><small>Nenhum processamento ainda.</small></p>{% endif %}
 
 {% if refresh %}<script>setTimeout(function(){location.reload()},8000)</script>{% endif %}
+<div class="foot"><b><span style="color:#F4B03E">estud</span><span style="color:#4CB74F">.you</span></b>
+ &middot; ferramenta interna de limpeza de listas &middot; <span>Você aprendendo sempre</span></div>
 </body></html>
 """
 
