@@ -54,9 +54,11 @@ arquivo de ~1 milhão de linhas, com ~27% de domínios corporativos
    | `APP_USER`       | `admin`                 | Usuário do login. |
    | `SMTP_RATE`      | `300`                   | Sondas SMTP por minuto. |
    | `DNS_RATE`       | `50`                    | Consultas DNS por segundo. |
-   | `WORKERS`        | `8`                     | Paralelismo (I/O-bound; ok em VPS fraca). |
+   | `WORKERS`        | `16`                    | Paralelismo (I/O-bound). 16 é seguro: cada domínio é único. |
    | `MAX_UPLOAD_MB`  | `2048`                  | Tamanho máximo de upload. |
-   | `DEEP`           | `1`                     | SMTP profundo (detecta catch-all). `0` desliga. |
+   | `SMTP_TIMEOUT`   | `6`                     | Segundos por sonda SMTP. Baixo = lote rápido em VPS sem rDNS. |
+   | `SMTP_KEEP_INCONCLUSIVE` | `1`             | **Não descarta** corporativo válido por MX quando o SMTP dá timeout (mantém igual ao gmail; só 550 definitivo descarta). |
+   | `DEEP`           | `0`                     | Catch-all/greylisting. Com `KEEP_INCONCLUSIVE=1`, `0` dobra a velocidade sem mudar o resultado. `1` só vale com rDNS configurado. |
    | `GREYLIST_RETRIES`| `0`                    | Reenvios em greylisting (4xx). `0` = não trava o lote. |
    | `GREYLIST_DELAY` | `20`                    | Segundos entre reenvios (se `RETRIES`>0). |
    | `SMTP_FROM`      | `verify@SEU-DOMINIO`    | Remetente do envelope SMTP (ver "Identidade SMTP"). |
