@@ -38,11 +38,19 @@ DATA_DIR = os.environ.get("DATA_DIR", "/data")
 MAX_UPLOAD_MB = int(os.environ.get("MAX_UPLOAD_MB", "2048"))
 SMTP_RATE = int(os.environ.get("SMTP_RATE", "300"))
 DNS_RATE = int(os.environ.get("DNS_RATE", "50"))
-WORKERS = int(os.environ.get("WORKERS", "8"))
+WORKERS = int(os.environ.get("WORKERS", "16"))
 # SMTP profundo (catch-all + greylisting) e identidade do remetente
 DEEP = os.environ.get("DEEP", "1") not in ("0", "false", "False", "")
 GREYLIST_RETRIES = int(os.environ.get("GREYLIST_RETRIES", "0"))
 GREYLIST_DELAY = int(os.environ.get("GREYLIST_DELAY", "20"))
+
+# Timeout de cada sonda SMTP. Em VPS sem rDNS, muitos servidores nao respondem
+# e a sonda trava ate o timeout -> baixar isto acelera MUITO o lote.
+core.eva.SMTP_TIMEOUT = int(os.environ.get("SMTP_TIMEOUT", "6"))
+# Nao descartar corporativo valido por MX so porque o SMTP deu timeout
+# (modo pratico; o anti-bounce fica com a lista de supressao). 1 = ligado.
+core.eva.SMTP_KEEP_INCONCLUSIVE = (
+    os.environ.get("SMTP_KEEP_INCONCLUSIVE", "1") not in ("0", "false", "False", ""))
 
 # Identidade SMTP: em producao aponte para um dominio REAL com rDNS/SPF.
 if os.environ.get("SMTP_FROM"):

@@ -78,6 +78,16 @@ SMTP_USE_STARTTLS = True              # tenta TLS quando o servidor oferece
 SMTP_TIMEOUT = 10   # segundos
 DNS_TIMEOUT = 5     # segundos
 
+# Quando o SMTP NAO e conclusivo (timeout / servidor nao responde / sem rDNS),
+# o veredito vem como "desconhecido". Com esta flag LIGADA, um e-mail
+# corporativo valido por MX nesse caso e MANTIDO (mesmo criterio do gmail, que
+# tambem so passa por MX) em vez de descartado. Evita perder lead bom so porque
+# o IP da VPS nao consegue conversar com o servidor de destino. So um veredito
+# SMTP DEFINITIVO ("invalido", ex.: 550) descarta. O controle de bounce, nesse
+# cenario, fica com a lista de supressao. Desligada por padrao (comportamento
+# antigo do app desktop); o app web liga via variavel de ambiente.
+SMTP_KEEP_INCONCLUSIVE = False
+
 # ---------------------------------------------------------------------------
 #  SEGURANCAS DO MODO SMTP (evitar bloqueio / blacklist do IP)
 # ---------------------------------------------------------------------------
@@ -695,6 +705,13 @@ def validate_email(email, mode, deep=False):
                        "Provedor accept-all (MX OK; SMTP ignorado)" + nota_typo)
 
     status, detalhe = smtp_check(fixed, mx_hosts, domain, deep=deep)
+    # SMTP nao conclusivo (timeout / servidor mudo / IP sem rDNS): nao da pra
+    # provar que a caixa NAO existe. Mantemos como valido por MX (igual ao
+    # gmail) em vez de descartar lead bom. So o veredito DEFINITIVO "invalido"
+    # (550 etc.) descarta de verdade.
+    if status == "desconhecido" and SMTP_KEEP_INCONCLUSIVE:
+        return _finish(result, "valido",
+                       "MX OK; SMTP nao conclusivo - mantido" + nota_typo)
     return _finish(result, status, detalhe + nota_typo)
 
 
