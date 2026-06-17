@@ -17,7 +17,6 @@ Protegido por senha (HTTP Basic). Configure por variaveis de ambiente:
 """
 
 import os
-import io
 import time
 import uuid
 import hmac
@@ -51,6 +50,10 @@ WORKERS = int(os.environ.get("WORKERS", "16"))
 DEEP = os.environ.get("DEEP", "1") not in ("0", "false", "False", "")
 GREYLIST_RETRIES = int(os.environ.get("GREYLIST_RETRIES", "0"))
 GREYLIST_DELAY = int(os.environ.get("GREYLIST_DELAY", "20"))
+# Teto de duracao por job: se um processamento emperrar (ex.: SMTP lentissimo),
+# ele e parado automaticamente apos este tempo, liberando a fila para os
+# proximos. O que ja foi processado fica disponivel para download.
+MAX_JOB_HOURS = float(os.environ.get("MAX_JOB_HOURS", "12"))
 
 # Timeout de cada sonda SMTP. Em VPS sem rDNS, muitos servidores nao respondem
 # e a sonda trava ate o timeout -> baixar isto acelera MUITO o lote.
@@ -73,7 +76,9 @@ SUPPRESSION_PATH = os.path.join(DATA_DIR, "suppression.txt")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-ALLOWED_EXT = {".xlsx", ".xlsm", ".xls", ".csv", ".txt"}
+# .xls antigo (BIFF) NAO entra: o openpyxl so le OOXML (.xlsx/.xlsm). Aceitar
+# .xls so geraria job de erro. O usuario deve salvar como .xlsx no Excel.
+ALLOWED_EXT = {".xlsx", ".xlsm", ".csv", ".txt"}
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
@@ -108,6 +113,18 @@ def _run_job(job):
             return
         job["status"] = "processando"
 
+        # Watchdog anti-travamento: evita que um job emperrado segure a fila
+        # para sempre. Apos MAX_JOB_HOURS sinaliza parada automatica.
+        timed_out = {"v": False}
+
+        def _force_stop():
+            timed_out["v"] = True
+            job["stop"].set()
+
+        watchdog = threading.Timer(max(0.1, MAX_JOB_HOURS) * 3600, _force_stop)
+        watchdog.daemon = True
+        watchdog.start()
+
         def progress(c):
             job["counters"] = c
             job["files"] = c.get("arquivos", [])
@@ -124,11 +141,18 @@ def _run_job(job):
                 progress_cb=progress, stop_event=job["stop"])
             job["counters"] = c
             job["files"] = c.get("arquivos", [])
-            job["status"] = "cancelado" if job["stop"].is_set() else "concluido"
+            if job["stop"].is_set():
+                job["status"] = "cancelado"
+                if timed_out["v"]:
+                    job["error"] = (f"Parado automaticamente: excedeu o limite "
+                                    f"de {MAX_JOB_HOURS:g}h.")
+            else:
+                job["status"] = "concluido"
         except Exception as exc:
             job["error"] = str(exc)
             job["status"] = "erro"
         finally:
+            watchdog.cancel()
             job["t_end"] = time.time()
             # LGPD + disco: o arquivo de leads enviado contem dados pessoais e
             # nao e mais necessario apos o processamento (a planilha LIMPA fica
@@ -215,7 +239,7 @@ PAGE = """
 <div class="card">
  <form method="post" action="{{ url_for('upload') }}" enctype="multipart/form-data">
   <label><b>1) Planilha de leads</b> (.xlsx / .csv)</label>
-  <input type="file" name="file" accept=".xlsx,.xlsm,.xls,.csv,.txt" required>
+  <input type="file" name="file" accept=".xlsx,.xlsm,.csv,.txt" required>
   <label><input type="checkbox" name="dedup" checked> Remover e-mails duplicados</label>
   <label><input type="checkbox" name="excluir"> Remover automaticos (noreply@, newsletter@)</label>
   <label><input type="checkbox" name="rapido"> Modo rapido (so MX, <b>sem</b> SMTP)</label>
@@ -233,7 +257,7 @@ PAGE = """
   <p><small>Suba aqui o export de e-mails que <b>bouncaram</b> ou estao em
    Do-Not-Contact. Eles passam a ser removidos automaticamente de toda lista
    nova. <b>Na supressao agora: {{ '{:,}'.format(sup_count).replace(',','.') }} e-mails.</b></small></p>
-  <input type="file" name="file" accept=".xlsx,.xlsm,.xls,.csv,.txt" required>
+  <input type="file" name="file" accept=".xlsx,.xlsm,.csv,.txt" required>
   <button class="btn gray" type="submit">Adicionar a supressao</button>
  </form>
 </div>
@@ -255,7 +279,7 @@ PAGE = """
   <td>
    {% if c %}
      {% set proc = c.get('processadas',0) %}{% set tot = c.get('total_estimado',0) %}
-     {% if tot %}{% set pct = (proc*100//tot) if tot else 0 %}
+     {% if tot %}{% set pct = [proc*100//tot, 100]|min if tot else 0 %}
        <div class="bar"><span style="width:{{ pct }}%"></span></div>{{ pct }}%<br>{% endif %}
      {{ '{:,}'.format(proc).replace(',','.') }}{% if tot %} / {{ '{:,}'.format(tot).replace(',','.') }}{% endif %}
      <br><small>mantidas: <b>{{ '{:,}'.format(c.get('mantidas',0)).replace(',','.') }}</b>

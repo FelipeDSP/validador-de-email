@@ -737,7 +737,11 @@ def _read_raw_rows(path):
             reader = csv.reader(f, delimiter=delimiter)
             rows = [r for r in reader]
 
-    elif ext in (".xlsx", ".xlsm", ".xls"):
+    elif ext == ".xls":
+        raise RuntimeError(
+            "Formato .xls (Excel antigo) nao e suportado. Abra no Excel e "
+            "salve como .xlsx, depois tente de novo.")
+    elif ext in (".xlsx", ".xlsm"):
         if openpyxl is None:
             raise RuntimeError("openpyxl nao esta instalado para ler Excel.")
         wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
@@ -842,6 +846,12 @@ def _sanitize_cell(value):
 
 def _sanitize_row(row):
     return [_sanitize_cell(c) for c in row]
+
+
+# Teto de linhas de DADOS por arquivo XLSX (o formato suporta 1.048.576 no
+# total, incluindo o cabecalho). Acima disto, a saida e dividida em
+# _parte2.xlsx, _parte3.xlsx... para nunca gerar um arquivo invalido.
+XLSX_MAX_DATA_ROWS = 1_000_000
 
 
 def write_results(path, results):
@@ -980,7 +990,11 @@ def open_table_stream(path, column=None, detect_buffer=60):
         raw_iter = reader
         closer = f.close
 
-    elif ext in (".xlsx", ".xlsm", ".xls"):
+    elif ext == ".xls":
+        raise RuntimeError(
+            "Formato .xls (Excel antigo) nao e suportado. Abra no Excel e "
+            "salve como .xlsx, depois tente de novo.")
+    elif ext in (".xlsx", ".xlsm"):
         if openpyxl is None:
             raise RuntimeError("openpyxl nao esta instalado para ler Excel.")
         wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
@@ -1084,31 +1098,59 @@ def stream_process(in_path, out_path, column, excluir_arriscados,
     # linhas em streaming, sem segurar a planilha inteira na RAM.
     ext = os.path.splitext(out_path)[1].lower()
     use_xlsx = ext in (".xlsx", ".xlsm")
+    out_files = []
     if use_xlsx:
         if openpyxl is None:
             raise RuntimeError("openpyxl nao esta instalado para gravar Excel.")
-        wb = openpyxl.Workbook(write_only=True)
-        ws = wb.create_sheet("Limpa")
-        out = None
+        # Grava em streaming e DIVIDE em _parte2.xlsx... ao passar do teto do
+        # formato, para nunca gerar um arquivo invalido (>1.048.576 linhas).
+        _base, _xext = os.path.splitext(out_path)
+        _xs = {"wb": None, "ws": None, "cur": None, "part": 0, "rows": 0}
+
+        def _open_part():
+            if _xs["wb"] is not None:
+                _xs["wb"].save(_xs["cur"])
+            _xs["part"] += 1
+            _xs["cur"] = (out_path if _xs["part"] == 1
+                          else f"{_base}_parte{_xs['part']}{_xext}")
+            _xs["wb"] = openpyxl.Workbook(write_only=True)
+            _xs["ws"] = _xs["wb"].create_sheet("Limpa")
+            _xs["rows"] = 0
+            out_files.append(_xs["cur"])
+            if header is not None:                 # cabecalho em cada parte
+                _xs["ws"].append(_sanitize_row(header))
+
+        _open_part()
 
         def _emit(row):
-            ws.append(_sanitize_row(row))
+            if _xs["rows"] >= XLSX_MAX_DATA_ROWS:
+                _open_part()
+            _xs["ws"].append(_sanitize_row(row))
+            _xs["rows"] += 1
+
+        def _emit_header():
+            pass                # ja escrito dentro de _open_part (em toda parte)
 
         def _close_out():
-            wb.save(out_path)
+            if _xs["wb"] is not None:
+                _xs["wb"].save(_xs["cur"])
     else:
         out = open(out_path, "w", encoding="utf-8-sig", newline="")
         writer = csv.writer(out, delimiter=";")
+        out_files.append(out_path)
 
         def _emit(row):
             writer.writerow(_sanitize_row(row))
+
+        def _emit_header():
+            if header is not None:
+                _emit(header)
 
         def _close_out():
             out.close()
 
     try:
-        if header is not None:
-            _emit(header)
+        _emit_header()
 
         for r in rows:
             if stop_event is not None and stop_event.is_set():
@@ -1156,6 +1198,7 @@ def stream_process(in_path, out_path, column, excluir_arriscados,
     finally:
         _close_out()
 
+    c["arquivos"] = list(out_files)
     if progress_cb is not None:
         progress_cb(dict(c))
     return c
